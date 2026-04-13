@@ -1458,19 +1458,27 @@ export default function App() {
 
             <div className="map-wrap">
               <div className="map">
-                {filteredShelves.map((shelf) => (
-                  <button
-                    key={shelf.id}
-                    className="shelf"
-                    style={{
-                      gridColumn: shelf.col,
-                      gridRow: `${shelf.row} / span ${shelf.rowSpan}`,
-                    }}
-                    onClick={() => openShelf(selectedZone, shelf.id)}
-                  >
-                    {shelf.id}
-                  </button>
-                ))}
+                {filteredShelves.map((shelf) => {
+                  const shelfItemsCount = itemsByShelf[shelf.id]?.length || 0;
+                  const isOccupied = shelfItemsCount > 0;
+
+                  return (
+                    <button
+                      key={shelf.id}
+                      className={`shelf ${isOccupied ? "occupied" : "empty"}`}
+                      style={{
+                        gridColumn: shelf.col,
+                        gridRow: `${shelf.row} / span ${shelf.rowSpan}`,
+                      }}
+                      onClick={() => openShelf(selectedZone, shelf.id)}
+                    >
+                      <span className="shelf-label">{shelf.id}</span>
+                      {isOccupied && (
+                        <span className="shelf-count">{shelfItemsCount}</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </>
