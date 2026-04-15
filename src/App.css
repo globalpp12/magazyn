@@ -116,7 +116,7 @@ body {
 .map {
   display: grid;
   grid-template-columns: repeat(7, 90px);
-  grid-template-rows: repeat(18, 44px);
+  grid-template-rows: repeat(22, 44px);
   gap: 12px;
   padding: 18px;
   background: white;
@@ -169,6 +169,11 @@ body {
   background: rgba(255, 255, 255, 0.18);
   font-size: 12px;
   line-height: 1;
+}
+
+.wide-shelf {
+  border-radius: 0;
+  min-height: 88px;
 }
 
 .shelf-view,
@@ -362,7 +367,7 @@ body {
 
   .map {
     grid-template-columns: repeat(7, 72px);
-    grid-template-rows: repeat(18, 38px);
+    grid-template-rows: repeat(22, 38px);
     gap: 10px;
     max-width: 100%;
   }
@@ -377,6 +382,10 @@ body {
     height: 22px;
     font-size: 11px;
     padding: 0 6px;
+  }
+
+  .wide-shelf {
+    min-height: 76px;
   }
 
   .item-top {

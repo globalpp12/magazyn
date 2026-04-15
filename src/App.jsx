@@ -45,6 +45,10 @@ const shelves = [
   { id: "16", col: 7, row: 10, rowSpan: 3 },
   { id: "17", col: 7, row: 13, rowSpan: 3 },
   { id: "18", col: 7, row: 16, rowSpan: 3 },
+
+  { id: "D1", col: 1, colSpan: 2, row: 20, rowSpan: 2, wide: true },
+  { id: "D2", col: 3, colSpan: 2, row: 20, rowSpan: 2, wide: true },
+  { id: "D3", col: 5, colSpan: 3, row: 20, rowSpan: 2, wide: true },
 ];
 
 function getZoneName(zoneId) {
@@ -1462,12 +1466,18 @@ export default function App() {
                   const shelfItemsCount = itemsByShelf[shelf.id]?.length || 0;
                   const isOccupied = shelfItemsCount > 0;
 
+                  const gridColumn = shelf.colSpan
+                    ? `${shelf.col} / span ${shelf.colSpan}`
+                    : shelf.col;
+
                   return (
                     <button
                       key={shelf.id}
-                      className={`shelf ${isOccupied ? "occupied" : "empty"}`}
+                      className={`shelf ${isOccupied ? "occupied" : "empty"} ${
+                        shelf.wide ? "wide-shelf" : ""
+                      }`}
                       style={{
-                        gridColumn: shelf.col,
+                        gridColumn,
                         gridRow: `${shelf.row} / span ${shelf.rowSpan}`,
                       }}
                       onClick={() => openShelf(selectedZone, shelf.id)}
