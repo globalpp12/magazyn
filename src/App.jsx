@@ -171,6 +171,7 @@ export default function App() {
   const [dbItems, setDbItems] = useState([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSavingItem, setIsSavingItem] = useState(false);
+  const [isMovingItem, setIsMovingItem] = useState(false);
 
   const [view, setView] = useState("start");
   const [selectedZone, setSelectedZone] = useState(null);
@@ -183,6 +184,7 @@ export default function App() {
   const [toListSort, setToListSort] = useState("date_desc");
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showMoveForm, setShowMoveForm] = useState(false);
   const [editingItemId, setEditingItemId] = useState(null);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
@@ -193,6 +195,11 @@ export default function App() {
     description: "",
     status: "neutralny",
     images: [],
+  });
+
+  const [moveData, setMoveData] = useState({
+    zoneId: "",
+    shelfId: "",
   });
 
   async function loadItemsFromSupabase() {
@@ -276,6 +283,10 @@ export default function App() {
   const selectedItems = selectedShelf ? itemsByShelf[selectedShelf] || [] : [];
   const selectedItem =
     dbItems.find((item) => String(item.id) === String(selectedItemId)) || null;
+
+  const moveShelfOptions = useMemo(() => {
+    return getShelvesForZone(moveData.zoneId);
+  }, [moveData.zoneId]);
 
   const allItems = useMemo(() => {
     return activeItems.map((item) => ({
@@ -380,9 +391,34 @@ export default function App() {
     setEditingItemId(null);
   }
 
+  function closeMoveForm() {
+    setShowMoveForm(false);
+    setMoveData({
+      zoneId: "",
+      shelfId: "",
+    });
+  }
+
   function handleFormChange(e) {
     const { name, value } = e.target;
     setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+
+  function handleMoveChange(e) {
+    const { name, value } = e.target;
+
+    if (name === "zoneId") {
+      setMoveData({
+        zoneId: value,
+        shelfId: "",
+      });
+      return;
+    }
+
+    setMoveData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -578,6 +614,55 @@ export default function App() {
     }
   }
 
+  async function handleMoveItem(e) {
+    e.preventDefault();
+
+    if (!selectedItem) return;
+
+    if (!moveData.zoneId) {
+      alert("Wybierz strefę.");
+      return;
+    }
+
+    if (!moveData.shelfId.trim()) {
+      alert("Podaj lub wybierz regał.");
+      return;
+    }
+
+    try {
+      setIsMovingItem(true);
+
+      const nextZoneId = moveData.zoneId;
+      const nextShelfId = moveData.shelfId.trim();
+
+      const { error } = await supabase
+        .from("items")
+        .update({
+          zone_id: nextZoneId,
+          shelf_id: nextShelfId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", selectedItem.id);
+
+      if (error) {
+        throw error;
+      }
+
+      await loadItemsFromSupabase();
+
+      setSelectedZone(nextZoneId);
+      setSelectedShelf(nextShelfId);
+      setSelectedItemId(selectedItem.id);
+      setView("item");
+      closeMoveForm();
+    } catch (error) {
+      console.error("Błąd przenoszenia:", error);
+      alert("Nie udało się przenieść rzeczy.");
+    } finally {
+      setIsMovingItem(false);
+    }
+  }
+
   function startEditItem(item) {
     setEditingItemId(item.id);
     setFormData({
@@ -595,6 +680,16 @@ export default function App() {
         : [],
     });
     setShowAddForm(true);
+    setShowMoveForm(false);
+  }
+
+  function openMoveItem(item) {
+    setMoveData({
+      zoneId: item.zone_id || "",
+      shelfId: item.shelf_id || "",
+    });
+    setShowMoveForm(true);
+    setShowAddForm(false);
   }
 
   function cancelForm() {
@@ -625,6 +720,7 @@ export default function App() {
         cancelForm();
       }
 
+      closeMoveForm();
       await loadItemsFromSupabase();
     } catch (error) {
       console.error("Błąd archiwizacji:", error);
@@ -742,6 +838,7 @@ export default function App() {
     setSelectedShelf(null);
     setSelectedItemId(null);
     cancelForm();
+    closeMoveForm();
     setZoneSearch("");
     setView("zone");
   }
@@ -751,6 +848,7 @@ export default function App() {
     setSelectedShelf(shelfId);
     setSelectedItemId(null);
     cancelForm();
+    closeMoveForm();
     setView("shelf");
   }
 
@@ -759,6 +857,7 @@ export default function App() {
     setSelectedShelf(shelfId);
     setSelectedItemId(item.id);
     cancelForm();
+    closeMoveForm();
     setView("item");
   }
 
@@ -768,14 +867,17 @@ export default function App() {
     setSelectedShelf(null);
     setSelectedItemId(null);
     cancelForm();
+    closeMoveForm();
     setZoneSearch("");
   }
 
   function openArchive() {
+    closeMoveForm();
     setView("archive");
   }
 
   function openToList() {
+    closeMoveForm();
     setView("to_list");
   }
 
@@ -853,6 +955,7 @@ export default function App() {
 
             <div className="item-actions">
               <button onClick={() => startEditItem(selectedItem)}>Edytuj</button>
+              <button onClick={() => openMoveItem(selectedItem)}>Przenieś</button>
               <button
                 className="danger"
                 onClick={() => handleDeleteItem(selectedItem.id)}
@@ -861,6 +964,68 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {showMoveForm && (
+            <form className="add-form" onSubmit={handleMoveItem}>
+              <h3>Przenieś rzecz</h3>
+
+              <label>Nowa strefa</label>
+              <select
+                name="zoneId"
+                value={moveData.zoneId}
+                onChange={handleMoveChange}
+              >
+                <option value="">Wybierz strefę</option>
+                {zones.map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+
+              {moveShelfOptions.length > 0 ? (
+                <>
+                  <label>Nowy regał</label>
+                  <select
+                    name="shelfId"
+                    value={moveData.shelfId}
+                    onChange={handleMoveChange}
+                  >
+                    <option value="">Wybierz regał</option>
+                    {moveShelfOptions.map((shelf) => (
+                      <option key={shelf.id} value={shelf.id}>
+                        {shelf.id}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label>Nowy regał / miejsce</label>
+                  <input
+                    type="text"
+                    name="shelfId"
+                    value={moveData.shelfId}
+                    onChange={handleMoveChange}
+                    placeholder="Np. półka 2, ściana lewa, stół 1"
+                  />
+                </>
+              )}
+
+              <div className="form-buttons">
+                <button type="submit" disabled={isMovingItem}>
+                  {isMovingItem ? "Przenoszenie..." : "Zapisz nowe miejsce"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={closeMoveForm}
+                >
+                  Anuluj
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="product-card">
             <div className="item-top">
@@ -1209,6 +1374,7 @@ export default function App() {
               setSelectedShelf(null);
               setSelectedItemId(null);
               cancelForm();
+              closeMoveForm();
               setView("zone");
             }}
           >
@@ -1231,6 +1397,7 @@ export default function App() {
             <button
               onClick={() => {
                 resetForm();
+                closeMoveForm();
                 setShowAddForm(true);
               }}
             >
@@ -1412,6 +1579,9 @@ export default function App() {
                   </div>
 
                   <div className="item-actions">
+                    <button onClick={() => openItem(selectedZone, selectedShelf, item)}>
+                      Otwórz
+                    </button>
                     <button
                       className="danger"
                       onClick={() => handleDeleteItem(item.id)}
